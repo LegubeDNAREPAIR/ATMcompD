@@ -1,0 +1,9 @@
+configfile: "config.json"
+
+include:"star.rules"
+
+rule all:
+	input:
+		config["GENERAL"]["experiment_name"]+"/QC/MULTIQC/"+config["GENERAL"]["experiment_name"]+"_multiqc_report.html",
+		config["GENERAL"]["experiment_name"]+"/mapping/counts/"+config["GENERAL"]["experiment_name"]+"_merged_counts.csv"
+

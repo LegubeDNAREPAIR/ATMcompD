@@ -1,0 +1,286 @@
+from snakemake.utils import R
+#SHORTCUT
+##INDEX
+GENDIR = config["GENOME"]["gen_dir"]
+GENOME = GENDIR+config["GENOME"]["gen_name"]
+GTF = config["GENOME"]["gen_gtf_dir"]+config["GENOME"]["gen_gtf_name"]
+##ALN
+SAMPLEDIR = config["GENERAL"]["sample_dir"]
+SAMPLEOUT = config["GENERAL"]["experiment_name"]
+R1 = config["GENERAL"]["separator"]+config["GENERAL"]["R1"]+config["GENERAL"]["sample_ext"]
+R2 = config["GENERAL"]["separator"]+config["GENERAL"]["R2"]+config["GENERAL"]["sample_ext"]
+#QC
+rule fastqc_raw:
+	input:
+		fastq=SAMPLEDIR+"/{prefix}"+config["GENERAL"]["separator"]+"{group}"+config["GENERAL"]["sample_ext"]
+	output:
+		SAMPLEOUT+"/QC/RAW/{prefix}"+config["GENERAL"]["separator"]+"{group}_fastqc.html"
+	params:
+		dir=SAMPLEOUT+"/QC/RAW/"
+	threads: config["QC"]["threads"]
+	benchmark :
+		SAMPLEOUT+"/benchmarks/fastqc_raw/{prefix}"+config["GENERAL"]["separator"]+"{group}.txt"
+	priority: 100
+	message : "##RUNNING : fastqc for {input.fastq}"
+	shell: "fastqc -q -t {threads} --outdir {params.dir} {input.fastq}"
+
+
+rule fastqc_bam:
+	input:
+		bam=SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bam"
+	output:
+		SAMPLEOUT+"/QC/bam/{prefix}.sorted_fastqc.html"
+	params:
+		dir=SAMPLEOUT+"/QC/bam/"
+	threads: config["QC"]["threads"]
+	benchmark :
+		SAMPLEOUT+"/benchmarks/fastqc_bam/{prefix}.txt"
+	priority: 10
+	message : "##RUNNING : fastqc for {input.bam}"
+	shell: "fastqc -q -t {threads} --outdir {params.dir} {input.bam}"
+
+
+rule multi_qc:
+	input:
+		expand(SAMPLEOUT+"/QC/RAW/{sample}"+config["GENERAL"]["separator"]+"{group}_fastqc.html",sample=config["GENERAL"]["samples"],group=[config["GENERAL"]["R1"],config["GENERAL"]["R2"]]),
+		expand(SAMPLEOUT+"/QC/bam/{sample}.sorted_fastqc.html",sample=config["GENERAL"]["samples"]),
+		expand(SAMPLEOUT+"/mapping/counts/{sample}_counts.tsv",sample=config["GENERAL"]["samples"]),
+		expand(SAMPLEOUT+"/QC/STATS/{type}/{sample}.sorted.{type}",type = ["stats","idxstats","flagstat"],sample=config["GENERAL"]["samples"])
+	output : 
+		SAMPLEOUT+"/QC/MULTIQC/"+SAMPLEOUT+"_multiqc_report.html",
+	params:
+		dirraw = SAMPLEOUT+"/QC/RAW/",
+		title = SAMPLEOUT,
+		conf = config["QC"]["multiqc_conf"],
+		output = SAMPLEOUT+"/QC/MULTIQC",
+		filename = SAMPLEOUT+"_multiqc_report.html"
+	benchmark :
+		SAMPLEOUT+"/benchmarks/multiqc/multiqc.txt"
+	priority: 50
+	message : "##RUNNING : MultiQC"
+	run:
+		shell("rename 's/_fastqc.zip/_raw_fastqc.zip/' {params.dirraw}/*_fastqc.zip"),
+		shell("export LC_ALL=C.UTF-8 && export LANG=C.UTF-8 && multiqc {params.title} --config {params.conf} --title {params.title} -o {params.output} --filename {params.filename}")
+
+
+#STAR
+rule star_index_gtf:
+	output:
+		GENDIR+"chrName.txt"
+	input:
+		fasta=GENOME+config["GENOME"]["gen_ext"],
+		genomeDir=GENDIR,
+		gtf=GTF
+	params:
+		splice_junction_overhang = config["GENERAL"]["reads_length"]
+	threads:
+		config["GENOME"]["threads"]
+	benchmark: SAMPLEOUT+"/benchmarks/star_index_gtf/{input.fasta}.benchmark.txt"
+	message: "Indexing with STAR for {input.fasta} with annotation : {input.gtf}"
+	shell:
+		"STAR"
+		" --runMode genomeGenerate"
+		" --runThreadN {threads}"
+		" --genomeDir {input.genomeDir}"
+		" --genomeFastaFiles {input.fasta}"
+		" --sjdbGTFfile {input.gtf}"
+		" --sjdbOverhang {params.splice_junction_overhang}"
+
+rule star_aln:
+	output:
+		temp(SAMPLEOUT+"/mapping/sam/{sample}/{sample}_Aligned.out.sam")
+	input:
+		fastq1 = SAMPLEDIR+"/{sample}"+R1,
+		fastq2 = SAMPLEDIR+"/{sample}"+R2,
+		index = GENDIR+"chrName.txt"
+	params:
+		readFilesCommand = config["ALN"]["STAR.readFilesCommand"],
+		genomeDir = GENDIR,
+		prefix = SAMPLEOUT+"/mapping/sam/{sample}/{sample}_",
+		supp=config["ALN"]["supp_options"],
+		name="{sample}"
+	threads:
+		config["ALN"]["threads"]
+	benchmark: SAMPLEOUT+"/benchmarks/star_aln/{sample}.benchmark.txt"
+	message: "STAR aln for {params.name}"
+	shell:
+		"STAR"
+		" {params.supp}"
+		" --genomeLoad NoSharedMemory"
+		" {params.readFilesCommand}"
+		" --genomeDir {params.genomeDir}"
+		" --runThreadN {threads}"
+		" --readFilesIn {input.fastq1} {input.fastq2}"
+		" --outFileNamePrefix {params.prefix}"
+
+rule star_remove_genome:
+	output:
+		SAMPLEOUT+"/mapping/sam/Removing_genome_out.txt"
+	input:
+		expand(SAMPLEOUT+"/mapping/sam/{sample}/{sample}_Aligned.out.sam",sample=config["GENERAL"]["samples"])
+	benchmark: SAMPLEOUT+"/benchmarks/star_remove_genome/star_remove_genome.benchmark.txt"
+	message: "STAR --genomeLoad Remove"
+	shell:
+		"STAR --genomeLoad Remove > {output}"
+#SAMTOOLS
+rule samtools_faidx:
+	input:
+		genome=GENOME+config["GENOME"]["gen_ext"]
+	output:
+		genome=GENOME+config["GENOME"]["gen_ext"]+".fai"
+	benchmark:
+		SAMPLEOUT+"/benchmarks/samtools_faidx/samtools_faidx.txt"
+	priority:50
+	message: "##RUNNING : samtools faidx for {input.genome}"
+	shell:
+		"samtools faidx {input.genome}"
+
+
+rule sam_to_bam:
+	input:
+		sam=SAMPLEOUT+"/mapping/sam/{prefix}/{prefix}_Aligned.out.sam",
+		genome=GENOME+config["GENOME"]["gen_ext"]+".fai"
+	output:
+		SAMPLEOUT+"/mapping/bam/raw/{prefix}.bam"
+	params:
+		quality=config["SAMTOOLS"]["quality"],
+		custom=config["SAMTOOLS"]["custom"]
+	benchmark :
+		SAMPLEOUT+"/benchmarks/sam_to_bam/{prefix}.txt"
+	priority: 50
+	threads: config["ALN"]["threads"]
+	message: "##RUNNING : samtools view for {input.sam}"
+	shell:
+		"samtools view "
+		"{params.custom} -@ {threads} "
+		"-b -S "
+		"-q {params.quality} "
+		"-t {input.genome} "
+		"-o {output} "
+		"{input.sam}"
+
+rule samtools_sort:
+	input:
+		bam=SAMPLEOUT+"/mapping/bam/raw/{prefix}.bam"
+	output:
+		SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bam"
+	benchmark :
+		SAMPLEOUT+"/benchmarks/samtools_sort/{prefix}.txt"
+	priority: 50
+	threads: config["ALN"]["threads"]
+	message: "##RUNNING : samtools sort {input.bam}"
+	shell:
+		"samtools sort -@ {threads} "
+		"-o {output} "
+		"{input.bam}"
+
+rule samtools_index_sorted:
+	input:
+		bam=SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bam"
+	output:
+		SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bai"
+	benchmark :
+		SAMPLEOUT+"/benchmarks/samtools_index_sorted/{prefix}.txt"
+	priority: 50
+	threads: config["ALN"]["threads"]
+	message: "##RUNNING : samtools index {input}"
+	shell:
+		"samtools index -@ {threads} {input} {output}"
+
+
+rule samtools_stats:
+	input:
+		bam=SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bam",
+		bai=SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bai"
+	output:
+		SAMPLEOUT+"/QC/STATS/stats/{prefix}.sorted.stats"
+	benchmark :
+		SAMPLEOUT+"/benchmarks/samtools_stats/{prefix}.txt"
+	priority: 50
+	message: "##RUNNING : samtools stats {input}"
+	shell:
+		"samtools stats {input.bam} > {output}"
+
+rule samtools_idxstats:
+	input:
+		bam=SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bam",
+		bai=SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bai"
+	output:
+		SAMPLEOUT+"/QC/STATS/idxstats/{prefix}.sorted.idxstats"
+	benchmark :
+		SAMPLEOUT+"/benchmarks/samtools_idxstats/{prefix}.txt"
+	priority: 50
+	message: "##RUNNING : samtools idxstats {input}"
+	shell:
+		"samtools idxstats {input.bam} > {output}"
+
+rule samtools_flagstat:
+	input:
+		bam=SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bam",
+		bai=SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bai"
+	output:
+		SAMPLEOUT+"/QC/STATS/flagstat/{prefix}.sorted.flagstat"
+	benchmark :
+		SAMPLEOUT+"/benchmarks/samtools_flagstat/{prefix}.txt"
+	priority: 50
+	message: "##RUNNING : samtools flagstat {input}"
+	shell:
+		"samtools flagstat {input.bam} > {output}"
+
+#HTSEQCOUNT
+rule htseq_count:
+	output:
+		protected(SAMPLEOUT+"/mapping/counts/{prefix}_counts.tsv")
+	input:
+		gtf=GTF,
+		bam=SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bam",
+		bai=SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bai"
+	params:
+		stranded=config["HTSEQ"]["stranded"],
+		count_type=config["HTSEQ"]["count_type"]
+	benchmark: SAMPLEOUT+"/benchmarks/htseq_count/{prefix}.benchmark.txt"
+	message: "htseq count for {input.bam}"
+	shell:
+		"htseq-count "
+		"--stranded={params.stranded} "
+		"-r pos "
+		"-f bam "
+		"-m {params.count_type} "
+		"{input.bam} {input.gtf} "
+		"> {output}"
+
+
+rule merge_counts:
+	input:
+		expand(SAMPLEOUT+"/mapping/counts/{sample}_counts.tsv",sample=config["GENERAL"]["samples"])
+	output:
+		protected(SAMPLEOUT+"/mapping/counts/"+SAMPLEOUT+"_merged_counts.csv")
+	params:
+		dir = os.getcwd(),
+		names=config["GENERAL"]["samples"]
+	benchmark :
+		SAMPLEOUT+"/benchmarks/merge_counts/merge_counts.txt"
+	priority: 50
+	message : "##RUNNING : Rscript to merge htseq counts with {input}"
+	script :
+		config["HTSEQ"]["merge_file"]
+
+rule make_bigwig_ERCC_stranded:
+	input:
+		SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bam",
+		SAMPLEOUT+"/mapping/bam/sorted/{prefix}.sorted.bai"
+	threads : config["ALN"]["threads"]
+	output:
+		protected(SAMPLEOUT+"/mapping/BIGWIG/{prefix}_normalized.bw"),
+		protected(SAMPLEOUT+"/mapping/BIGWIG/{prefix}_normalized_negative_strand.bw"),
+		protected(SAMPLEOUT+"/mapping/BIGWIG/{prefix}_normalized_positive_strand.bw")
+	params:
+		dir = os.getcwd(),
+		ERCC_length = config["BIGWIG"]["additional_features"]
+	benchmark :
+		SAMPLEOUT+"/benchmarks/make_bigwig/{prefix}.txt"
+	priority: 50
+	message : "##RUNNING : Rscript to make BIGWIG with {input}"
+	script:
+		config["BIGWIG"]["script"]
+

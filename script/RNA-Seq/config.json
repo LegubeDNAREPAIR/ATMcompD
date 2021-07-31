@@ -1,0 +1,52 @@
+{
+    "GENOME":{
+        "gen_dir":"/mnt/NAS/DATA/HIGH_THROUGHPUT_GENOMICS_DIvA/RNA-Seq/EMBL_201707/ERCC_Seq/fasta/",
+        "gen_ext":".fa",
+        "gen_name":"ERCC92_hg19",
+        "gen_gtf_dir":"/mnt/NAS/DATA/HIGH_THROUGHPUT_GENOMICS_DIvA/RNA-Seq/EMBL_201707/ERCC_Seq/GTF/",
+        "gen_gtf_name":"Homo_sapiens.GRCh37.87.chr_good_name_ERCC92.gtf",
+	"threads":12
+    },
+    "GENERAL":{
+        "experiment_name":"PROCESSED_strand-spe-reverse_1010",
+        "sample_dir":"RAW",
+    	"samples":["HYL5LBGX2_RNA_C1_1_17s002464-1-1_Clouaire_lane117s002464",
+"HYL5LBGX2_RNA_C1_OHT_1_17s002465-1-1_Clouaire_lane117s002465",
+"HYL5LBGX2_RNA_STX_1_17s002466-1-1_Clouaire_lane117s002466",
+"HYL5LBGX2_RNA_STX_OHT_1_17s002467-1-1_Clouaire_lane117s002467",
+"HYMHNBGX2_RNA_C1_2_17s002468-1-1_Clouaire_lane117s002468",
+"HYMHNBGX2_RNA_C1_OHT_2_17s002469-1-1_Clouaire_lane117s002469",
+"HYMHNBGX2_RNA_STX_2_17s002470-1-1_Clouaire_lane117s002470",
+"HYMHNBGX2_RNA_STX_OHT_2_17s002471-1-1_Clouaire_lane117s002471"],
+        "separator":"_",
+        "R1":"1_sequence",
+        "R2":"2_sequence",
+        "sample_ext":".txt.gz",
+        "reads_length":79
+	},
+    "QC":{
+        "threads":12,
+        "multiqc_conf":"DDR_Legube_RNA-Seq.yaml"
+    },
+    "ALN":{
+        "threads":12,
+        "supp_options":"",
+        "STAR.readFilesCommand":"--readFilesCommand gunzip -c"
+    },
+    "SAMTOOLS":{
+        "quality":25,
+        "custom":""
+    },
+    "HTSEQ":{
+        "stranded":"reverse",
+        "count_type":"union",
+	"merge_file":"/mnt/NAS2/DOSSIERS_PERSO/VINCENT/PIPELINES/R_SCRIPTS/HTSEQ/merge_counts.R"
+    },
+    "BIGWIG":{
+	"script":"/mnt/NAS2/DOSSIERS_PERSO/VINCENT/PIPELINES/R_SCRIPTS/HTSEQ/bigwig_stranded_ERCC.R",
+    "additional_features":"/bioinfo_legube/NAS/DATA/RNA-Seq/EMBL_201707/ERCC_Seq/fasta/ERCC92_length.txt"
+
+    }
+}
+
+
