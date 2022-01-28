@@ -3,19 +3,26 @@ require(rtracklayer)
 require(tidyverse)
 require(plyranges)
 seqlens <- BSgenome.Hsapiens.UCSC.hg19::BSgenome.Hsapiens.UCSC.hg19 %>% seqlengths()
+
+#LOAD DSB
 bless80 = read_bed("/mnt/NAS/DATA/AsiSI/BLESS_80best_JunFragPE_Rmdups_pm500bp.bed")
 DSB174 <- read_bed("/mnt/NAS/DATA/AsiSI/ASIsites_hg19_174_clived_IQ1.5.bed")
+#LOAD ENSEMBL GENES (hg19)
 ens.genes <- read.table("/home/rochevin/Documents/PROJET_THESE/DSB_EFFECT_ON_GENE/data/EnsDB.Hsapiens.v75.genes.bed",sep="\t",h=T) %>% GRanges()
 ens.genes <- regioneR::filterChromosomes(ens.genes,keep.chr=c(1:22,"X","Y"))
 seqlevels(ens.genes) <- paste0("chr",seqlevels(ens.genes))
 ens.genes$name <- ens.genes$gene_name
+#Extend genes by 3kb each side
 ens.extended <- ens.genes  %>% anchor_start() %>% stretch(3000) %>% anchor_end() %>% stretch(3000)
 
-#Gene based on ctcf position
+#Extract Differentially expressed genes
 DE_DIVA <- PhDfunc::GetDE_DIvA()
+
+# Create gamma domains
 # domains <- bless80 %>% anchor_center() %>% mutate(width=2000000)
 domains <- bless80 %>% anchor_center() %>% mutate(width=1000000)
 
+# Categorize genes by the overlap between DSB/gamma domains
 direct.damaged <- ens.extended %>% filter_by_overlaps(bless80)
 genes.domains <- ens.genes %>%
   filter(gene_id %in% DE_DIVA$rowname) %>%
@@ -23,14 +30,20 @@ genes.domains <- ens.genes %>%
     gene_id %in% direct.damaged$gene_id ~ "direct_damaged",
     TRUE ~ "gamma_domain"
   ))
-genes.domains.extended.ctcf <- genes.domains  %>% anchor_start() %>% stretch(1000) %>% anchor_end() %>% stretch(1000)
-ctcf_peaks <- read_narrowpeaks("/mnt/NAS/DATA/HIGH_THROUGHPUT_GENOMICS_DIvA/ChIP-Seq/CTCF/Clouaire_H5HJKBGXC_CTCF/PROCESSED/mapping/MACS/CTCFalfDIvA_vs_INPUT_peaks.narrowPeak")
+
+# Extend genes by 1kb each side
+# genes.domains.extended.ctcf <- genes.domains  %>% anchor_start() %>% stretch(1000) %>% anchor_end() %>% stretch(1000)
+genes.domains.extended <- promoters(genes.domains,1000,1000)
+
+
+#Load ctcf dataset
+ctcf_peaks <- read_narrowpeaks("/mnt/NAS/DATA/HIGH_THROUGHPUT_GENOMICS_DIvA/ChIP-Seq/COHESIN-CTCF/Clouaire_H5HJKBGXC_CTCF/PROCESSED/mapping/MACS/CTCFalfDIvA_vs_INPUT_peaks.narrowPeak")
 ctcf_motifs <- read_gff("/home/rochevin/Documents/PROJET_INGE/HiC_Coline/REVISIONS/ctcf_motifs.gff")
 ctcf_motifs.in.DIVA <- ctcf_motifs %>% filter_by_overlaps(ctcf_peaks)
 #ctcf peak exported for gaelle
 
 # genes.domains.extended.ctcf <- genes.domains.extended.ctcf %>% filter_by_overlaps(ctcf_peaks) 
-genes.domains.extended <- promoters(genes.domains,1000,1000)
+
 # genes.domains.extended <- genes.domains %>% anchor_3p() %>% stretch(1000)
 ctcf_motifs.in.DIVA.in.gamma <- ctcf_motifs.in.DIVA%>% filter_by_overlaps(domains)
 
@@ -41,7 +54,6 @@ res <- lapply(bless80$name,function(dsbname){
   DSB.pos <- bless80[bless80$name == dsbname]
   gamma.pos <- domains[domains$name == dsbname]
   
-  sres_tot <- c()
   
   sres_ctcf <- ctcf_motifs.in.DIVA.in.gamma %>% filter_by_overlaps(gamma.pos)
   
