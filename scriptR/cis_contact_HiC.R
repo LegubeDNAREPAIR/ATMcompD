@@ -154,16 +154,16 @@ MES_DSB <- list(
 
 
 mes_windows <- c(
-  "100kb"=100000
+  "100kb"=100000,
   # "50kb"=50000
-  # "10kb"=10000
+  "10kb"=10000
   # "5kb"=5000
 )
 
 mes_limites <- list(
-  "100kb"=c(1500000)
+  "100kb"=c(1500000),
   # "50kb"=c(500000)
-  # "10kb"=c(1000000)
+  "10kb"=c(1000000)
   # "5kb"=c(500000,250000)
 )
 res.boxplot <- lapply(names(MES_DSB),function(DSB.n){
@@ -191,7 +191,7 @@ res.boxplot <- lapply(names(MES_DSB),function(DSB.n){
         
         
         diva.chr <- DSB174 %>% filter(seqnames ==chrom) %>%
-          anchor_center() %>% mutate(width = mes_limites[[m.w]]*2)
+          anchor_center() %>% plyranges::mutate(width = mes_limites[[m.w]]*2)
         
         if(length(diva.chr)<2)
           return(NULL)

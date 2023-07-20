@@ -9,11 +9,11 @@ DE_DIVA <- PhDfunc::GetDE_DIvA()
 DE_DIVA <- DE_DIVA %>% 
   mutate(Type = case_when(
     # logFC < 0 & FILTER.FC == 1 & FILTER.P == 1 ~ "Downregulated",
-    logFC < 0 & FILTER.FC == 1 ~ "Downregulated",
-    # logFC < -0.15 ~ "Downregulated",
+    # logFC < 0 & FILTER.FC == 1 ~ "Downregulated",
+    logFC < -0.3 ~ "Downregulated",
     # logFC > 0 & FILTER.FC == 1 & FILTER.P == 1~ "Upregulated",
-    logFC > 0 & FILTER.FC == 1~ "Upregulated",
-    # logFC > 0.15 ~ "Upregulated",
+    # logFC > 0 & FILTER.FC == 1~ "Upregulated",
+    logFC > 0.3 ~ "Upregulated",
     TRUE ~ "None"
   )) 
 
@@ -22,7 +22,8 @@ ens.genes <- regioneR::filterChromosomes(ens.genes,keep.chr=c(1:22,"X","Y"))
 seqlevels(ens.genes) <- paste0("chr",seqlevels(ens.genes))
 mes_DSB <- "/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/data/AsiSI/DF_allAsiSI_ordBLESSpOHT_fragPE_Rmdups_500bp_24012019.tsv" %>% read_tsv() %>% 
   arrange(desc(value)) %>% dplyr::slice(1:200) %>% as_granges()
-gamma_region <- mes_DSB %>% anchor_center() %>% mutate(width = 1000000)
+# gamma_region <- mes_DSB %>% anchor_center() %>% mutate(width = 1000000)
+gamma_region <- mes_DSB %>% anchor_center() %>% mutate(width = 2000000)
 # chr.to.study <- glue::glue("chr{c(2,6,9,13,18,1,17,20,'X')}")
 chr.to.study <- glue::glue("chr{c(1,17,'X')}")
 # chr.to.study <- glue::glue("chr{c(1,17)}")
@@ -46,7 +47,8 @@ compD.bw <- c(
   mutate_at(vars(starts_with("score")),function(x){
     as.numeric(x>0)
   }) %>% 
-  mutate(score = rowSums(across(starts_with("score")))) %>% filter(score == 3)
+  mutate(score = rowSums(across(starts_with("score")))) 
+# %>% filter(score == 3)
 
 
 #Test if genes overlap more often than expected with compD 
@@ -69,75 +71,86 @@ data_files_breakpoints.GR <- data_files_breakpoints %>%
   map(dplyr::rename,"name"=ID) %>% 
   map(mutate,width=1) %>% 
   map(drop_na) %>% 
-  map(as_granges)
+  map(as_granges) %>% filter(score ==3)
 
 
 mes_genes.PC1 <- genes_DIVA %>%
-  # filter(seqnames %in% chr.to.study) %>% 
+  filter(seqnames %in% chr.to.study) %>%
   filter_by_overlaps(as_granges(compD.bw)) %>%
-  as_tibble() %>% 
+  as_tibble() %>%
   left_join(DE_DIVA_INFO,by = c("gene_id"="rowname")) %>% mutate(Type = glue::glue("CompD_{Type}"))
+
+# mes_genes.PC1 <- genes_DIVA %>%
+#   filter(seqnames %in% chr.to.study) %>%
+#   filter_by_overlaps(as_granges(compD.bw)%>% filter(score == 3)) %>%
+#   as_tibble() %>% 
+#   left_join(DE_DIVA_INFO,by = c("gene_id"="rowname")) %>% mutate(Type = glue::glue("CompD_{Type}"))
 
 mes_genes.PC1_nocompD <- genes_DIVA %>%
   filter(seqnames %in% chr.to.study) %>%
   filter_by_non_overlaps(as_granges(compD.bw)) %>%
-  as_tibble() %>% 
+  as_tibble() %>%
   left_join(DE_DIVA_INFO,by = c("gene_id"="rowname")) %>% mutate(Type = glue::glue("NoCompD_{Type}"))
+# mes_genes.PC1_nocompD <- genes_DIVA %>%
+#   filter(seqnames %in% chr.to.study) %>%
+#   filter_by_overlaps(as_granges(compD.bw) %>% filter(score < 3)) %>%
+#   as_tibble() %>%
+#   left_join(DE_DIVA_INFO,by = c("gene_id"="rowname")) %>% mutate(Type = glue::glue("NoCompD_{Type}"))
 
 
 A.list <- rbind(mes_genes.PC1,mes_genes.PC1_nocompD)%>% as_granges() %>% split(.,.$Type)
 
 require(regioneR)
 
-for(ni in names(data_files_breakpoints)){
-  my_transloc.GR <- data_files_breakpoints.GR[[ni]]
-  out_file <- glue::glue("/media/HDD_ROCHER/PROJET_THESE/PAPIER_COLINE_AUDE/results/PermTest_overlap_between_compD_ABD_genes_and_transloc_{str_replace(ni,' ','_')}.pdf")
-  pdf(out_file)
-  for(nii in names(A.list)){
-    A <- A.list[[nii]]
-    title_name <- glue::glue("Genes {nii} ({length(A)})")
-    pt <- permTest(A=A, ntimes=1000, randomize.function=resampleRegions, universe=filter(genes_DIVA,seqnames %in% chr.to.study),
-                   evaluate.function=numOverlaps, B=my_transloc.GR, verbose=F)
-    p <- as.ggplot(expression(plot(pt))) + ggtitle(title_name)
-    print(p)
-  }
-  dev.off()
-}
-
-
-A.list.compD.nocompD <- rbind(mes_genes.PC1,mes_genes.PC1_nocompD) %>% separate(Type,into=c("compD","Type")) %>% 
-  group_by(compD) %>% nest()
-my_transloc.GR <- data_files_breakpoints.GR[[1]]
-
-A.list.compD.nocompD.res <- A.list.compD.nocompD %>% mutate(permtest = map(data,
-                                                                           function(x){
-                                                                             A <-as_granges(x)
-                                                                             set.seed(1234)
-                                                                             pt <- permTest(A=A, ntimes=1000, randomize.function=resampleRegions, universe=filter(genes_DIVA,seqnames %in% glue::glue("chr{c(1,17,'X')}")),
-                                                                                            evaluate.function=numOverlaps, B=my_transloc.GR, verbose=F)
-                                                                             
-                                                                             tibble(
-                                                                               n = length(A),
-                                                                               permuted = mean(pt$numOverlaps$permuted),
-                                                                               observed = pt$numOverlaps$observed,
-                                                                               pval = format.pval(pt$numOverlaps$pval,2)
-                                                                             )
-                                                                             
-                                                                           })) %>% dplyr::select(-data) %>% unnest()
-my.p.bar <- A.list.compD.nocompD.res %>% 
-  mutate(observed = observed/permuted) %>% 
-  mutate(permuted = permuted/permuted) %>% 
-  gather(key=Type,value = value,-compD,-pval,-n) %>% 
-  mutate(mycolor = case_when(
-    Type == "permuted" ~ "#7f8c8d",
-    Type == "observed" & value > 1 ~ "#27ae60",
-    Type == "observed" & value < 1 ~ "#27ae60"
-  )) %>% 
-  mutate(compD = glue::glue("{compD} ({n})")) %>% 
-  ggplot(aes(x=compD,y=value,fill=mycolor)) + geom_bar(stat="identity",position = "dodge",col="black") + theme_classic() + theme(axis.text.x = element_markdown()) +
-  scale_fill_identity() + scale_y_continuous(labels = scales::percent,limits = c(0,1.2))
-ggsave("/media/HDD_ROCHER/PROJET_THESE/PAPIER_COLINE_AUDE/results/barplot_permutatio_observed_permuted_percentage_manipABD_compD_nocompD.pdf",my.p.bar,width=4,height=4)
-
+# for(ni in names(data_files_breakpoints)){
+#   my_transloc.GR <- data_files_breakpoints.GR[[ni]]
+#   out_file <- glue::glue("/media/HDD_ROCHER/PROJET_THESE/PAPIER_COLINE_AUDE/results/PermTest_overlap_between_compD_ABD_genes_and_transloc_{str_replace(ni,' ','_')}.pdf")
+#   pdf(out_file)
+#   for(nii in names(A.list)){
+#     A <- A.list[[nii]]
+#     title_name <- glue::glue("Genes {nii} ({length(A)})")
+#     pt <- permTest(A=A, ntimes=1000, randomize.function=resampleRegions, universe=filter(genes_DIVA,seqnames %in% chr.to.study),
+#                    evaluate.function=numOverlaps, B=my_transloc.GR, verbose=F)
+#     p <- as.ggplot(expression(plot(pt))) + ggtitle(title_name)
+#     print(p)
+#   }
+#   dev.off()
+# }
+# 
+# 
+# A.list.compD.nocompD <- rbind(mes_genes.PC1,mes_genes.PC1_nocompD) %>% separate(Type,into=c("compD","Type")) %>% 
+#   group_by(compD) %>% nest()
+# my_transloc.GR <- data_files_breakpoints.GR[[1]]
+# 
+# A.list.compD.nocompD.res <- A.list.compD.nocompD %>% mutate(permtest = map(data,
+#                                                                            function(x){
+#                                                                              A <-as_granges(x)
+#                                                                              set.seed(1234)
+#                                                                              pt <- permTest(A=A, ntimes=1000, randomize.function=resampleRegions, universe=filter(genes_DIVA,seqnames %in% glue::glue("chr{c(1,17,'X')}")),
+#                                                                                             evaluate.function=numOverlaps, B=my_transloc.GR, verbose=F)
+#                                                                              
+#                                                                              tibble(
+#                                                                                n = length(A),
+#                                                                                permuted = mean(pt$numOverlaps$permuted),
+#                                                                                observed = pt$numOverlaps$observed,
+#                                                                                pval = format.pval(pt$numOverlaps$pval,2)
+#                                                                              )
+#                                                                              
+#                                                                            })) %>% dplyr::select(-data) %>% unnest()
+# my.p.bar <- A.list.compD.nocompD.res %>% 
+#   mutate(observed = observed/permuted) %>% 
+#   mutate(permuted = permuted/permuted) %>% 
+#   gather(key=Type,value = value,-compD,-pval,-n) %>% 
+#   mutate(mycolor = case_when(
+#     Type == "permuted" ~ "#7f8c8d",
+#     Type == "observed" & value > 1 ~ "#27ae60",
+#     Type == "observed" & value < 1 ~ "#27ae60"
+#   )) %>% 
+#   mutate(compD = glue::glue("{compD} ({n})")) %>% 
+#   ggplot(aes(x=compD,y=value,fill=mycolor)) + geom_bar(stat="identity",position = "dodge",col="black") + theme_classic() + theme(axis.text.x = element_markdown()) +
+#   scale_fill_identity() + scale_y_continuous(labels = scales::percent,limits = c(0,1.2))
+# ggsave("/media/HDD_ROCHER/PROJET_THESE/PAPIER_COLINE_AUDE/results/barplot_permutatio_observed_permuted_percentage_manipABD_compD_nocompD.pdf",my.p.bar,width=4,height=4)
+# 
 
 
 A.list.compD.nocompD <- rbind(mes_genes.PC1,mes_genes.PC1_nocompD) %>% separate(Type,into=c("compD","Type")) %>% 

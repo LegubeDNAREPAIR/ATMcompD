@@ -1,0 +1,33 @@
+import os
+
+OUT="/home/rochevin/ownCloud/Documents/RNA-Seq/DRIP-Seq/"
+
+FILES = [
+	"/mnt/NAS/DATA/HIGH_THROUGHPUT_GENOMICS_DIvA/DRIP-SEQ/HYG77BGX2_DRIPseq_SETX/PROCESSED/WIGGLE/hg19/HYG77BGX2_DRIP2_C1_DIVA_17s002460-1-1_Clouaire_lane117s002460_normalized_hg19_nodups.bw"
+	,"/mnt/NAS/DATA/HIGH_THROUGHPUT_GENOMICS_DIvA/DRIP-SEQ/HYG77BGX2_DRIPseq_SETX/PROCESSED/WIGGLE/hg19/HYG77BGX2_DRIP2_C1_OHT_17s002461-1-1_Clouaire_lane117s002461_normalized_hg19_nodups.bw"
+	 ,"/mnt/NAS/DATA/HIGH_THROUGHPUT_GENOMICS_DIvA/DRIP-SEQ/DRIP-SEQ_in_siRNA/Clouaire_HKKWHBGX7/PROCESSED/mapping/bigwigCompare/HKKWHBGX7_DRIP_STX_vs_CTRL_pOHT24H.bigwigCompare.bw"
+	,"/mnt/NAS/DATA/HIGH_THROUGHPUT_GENOMICS_DIvA/DRIP-SEQ/DRIP-SEQ_in_siRNA/Clouaire_HKKWHBGX7/PROCESSED/mapping/bigwigCompare/HKKWHBGX7_DRIP_STX_vs_CTRL_DIVA.bigwigCompare.bw"
+	
+]
+
+CCFILES = {os.path.basename(x):x for x in FILES}
+
+rule all:
+	input:
+		expand(OUT+"GAELLE_SMOOTH/{bin}/{file}_bamcompare.{bin}.{sw}.bw",file=CCFILES.keys(),bin = [10000,50000],sw = 200)
+
+def getINPUT(wildcards):
+	return(CCFILES[wildcards.file])
+
+rule favorite_gaelle_smooth:
+	input:
+		getINPUT
+	output:
+		OUT+"GAELLE_SMOOTH/{bin}/{file}_bamcompare.{bin}.{sw}.bw"
+	params:
+		dir = os.getcwd(),
+		smooth_windows = "{bin}",
+		smooth_subwindows = "{sw}"
+	script:
+		"/mnt/NAS2/DOSSIERS_PERSO/VINCENT/PIPELINES/R_SCRIPTS/PROFILES/favorite_gaelle_smooth.R"
+

@@ -4,7 +4,7 @@ require(HiTC)
 require(tidyverse)
 require(plyranges)
 require(reshape2)
-require(keras)
+# require(keras)
 require(rtracklayer)
 require(cowplot)
 require(edgeR)
@@ -126,7 +126,12 @@ lim.Plot <- c(
 mes.bw1 <- PhDfunc::GetBWList()["GAM_clean_normalized_01022018_pOHT"] %>% map(import.bw,as="RleList")
 mes.bw2 <- PhDfunc::GetBWList()["53BP1_pOHT"] %>% map(import.bw,as="RleList")
 mes.bw3 <- PhDfunc::GetBWList()["polII_normalized_hg19_mOHT"] %>% map(import.bw,as="RleList")
-
+# mes.bw4 <- "/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/data/HiC_D/AB_comp/ABcomp_HiC_D_OHT_100kb.bedGraph" %>% map(import.bedGraph) %>% map(function(x){
+#   x %>% mutate(score = ifelse(seqnames =="chr22",score*-1,score)) # reverse signal on chromosome 22 for every compartment
+# })
+mes.bw4 <- "/mnt/NAS/DATA/HIGH_THROUGHPUT_GENOMICS_DIvA/Hi-C/HiC/compartmentAB/compartmentAB_OHT_manipA_100kb.bedGraph" %>% map(import.bedGraph) %>% map(function(x){
+  x %>% mutate(score = ifelse(seqnames =="chr22",score*-1,score)) # reverse signal on chromosome 22 for every compartment
+})
 ctrlCOND <- "DIvA"
 # ctrlCOND <- "OHT"
 
@@ -136,8 +141,8 @@ for(ctrlCOND in c("DIvA","OHT")){
     message(m.w)
     sw <- mes_windows[[m.w]]
     rds.files <- list.files("/media/HDD_ROCHER/PROJET_THESE/PAPIER_COLINE_AUDE/data/HiC_D/TRANS/KR/HiTC/observed",pattern=str_c("_",m.w),full.names=T)
-    # rds.files <- list.files("/home/rochevin/Documents/PROJET_INGE/HiC_Coline/matrix_generation/data_retry/KR/HiTC/observed",pattern=str_c("_",m.w),full.names=T) %>% str_subset("manipA")
-    Replicate <- rds.files %>% basename() %>% str_remove_all("HTC_observed_KR_HiC_D_|_full_matrix_[0-9]+kb.rds|HTC_observed_KR_|_manipA")
+    # rds.files <- list.files("/home/rochevin/Documents/PROJET_INGE/HiC_Coline/matrix_generation/matrix_generation/data_retry/KR/HiTC/observed",pattern=str_c("_",m.w),full.names=T) %>% str_subset("manipB")
+    Replicate <- rds.files %>% basename() %>% str_remove_all("HTC_observed_KR_HiC_D_|_full_matrix_[0-9]+kb.rds|HTC_observed_KR_|_manipA|_manipB")
     names(rds.files) <- Replicate
     
     for(window in mes_limites[[m.w]]){
@@ -201,6 +206,7 @@ for(ctrlCOND in c("DIvA","OHT")){
       p53BP1.val <- Get1val(x = bless40,my.wigs = names(mes.bw2)[1],one.w = mes.bw2[[1]]) %>% arrange(desc(value)) %>% dplyr::select(value,rowname)
       bless40 <- bless80 %>% anchor_center() %>% mutate(width=2000)
       pol2.val <- Get1val(x = bless40,my.wigs = names(mes.bw3)[1],one.w = mes.bw3[[1]]) %>% arrange(desc(value)) %>% dplyr::select(value,rowname)
+      AB.val <- bless40 %>% anchor_center() %>% mutate(width=1) %>% join_overlap_left(mes.bw4[[1]]) %>% as_tibble() %>% dplyr::select(name,score.y) %>% dplyr::rename(rowname="name",value = "score.y")
       #for chromosomic order
       
       order_chr_bless <- bless80 %>% sortSeqlevels %>% sort() %>% mutate(pos = 1:n()) %>%  as_tibble() %>% dplyr::select(name,pos,seqnames)
@@ -255,6 +261,24 @@ for(ctrlCOND in c("DIvA","OHT")){
         guides(fill = guide_colourbar(title.position = "top",title = "log2(Fold Change)",title.hjust=0.5,barwidth =unit(20,"lines"),barheight =unit(1,"lines"))) +
         ggtitle("ORDERED BY 53BP1")
       
+      #for ABcomp
+      data.ratio.AB.comp <- data.ratio.AB %>%
+        left_join(AB.val,by = c("bin1"="rowname")) %>% dplyr::rename(value_AB_1 = "value") %>% 
+        left_join(AB.val,by = c("bin2"="rowname")) %>% dplyr::rename(value_AB_2 = "value") %>% 
+        mutate(bin1 = fct_reorder(bin1,value_AB_1)) %>%
+        mutate(bin2 = fct_reorder(bin2,value_AB_2)) %>%
+        mutate(value_AB_1_type = as.factor(ifelse(value_AB_1>0,"A","B")),value_AB_2_type = as.factor(ifelse(value_AB_2>0,"A","B")))
+      
+      p13 <- plot_diff(data.ratio.AB.comp,facet=T,fixed=T,fixed.limite=lim.Plot[[m.w]],my.quantile=0.99) +
+        # geom_ysidetile(aes(x = "eigen", yfill = value_AB_2),show.legend = F)  +
+        # geom_xsidetile(aes(y = "eigen", xfill = value_AB_1),show.legend = F)  +
+        geom_ysidetile(aes(x = "Compartment", yfill = `value_AB_2_type`)) +
+        geom_xsidetile(aes(y = "Compartment", xfill = `value_AB_1_type`),show.legend =F) +
+        scale_xfill_manual(values = c("#c0392b","#2980b9"),breaks = c("A","B")) +
+        scale_yfill_manual("Compartment",values = c("#c0392b","#2980b9"),breaks = c("A","B")) +
+        guides(fill = guide_colourbar(title.position = "top",title = "log2(Fold Change)",title.hjust=0.5,barwidth =unit(20,"lines"),barheight =unit(1,"lines"))) +
+        ggtitle("ORDERED BY Eigen 1")
+      
       
       #Order by HR NHEJ
       orderHR <- bless80 %>% as_tibble() %>% mutate(Type = case_when(
@@ -274,10 +298,13 @@ for(ctrlCOND in c("DIvA","OHT")){
       
       
       
-      pdf(glue::glue("redo_plot_francois_ratio_pm{window_format}_bin{m.w}_Hich_average_ratio_{ctrlCOND}.pdf"),width=24,height=24)
+      # pdf(glue::glue("redo_plot_francois_ratio_pm{window_format}_bin{m.w}_Hich_average_ratio_{ctrlCOND}.pdf"),width=24,height=24)
+      # pdf(glue::glue("redo_plot_francois_ratio_pm_manipA_{window_format}_bin{m.w}_Hich_average_ratio_{ctrlCOND}.pdf"),width=24,height=24)
+      pdf(glue::glue("redo_plot_francois_ratio_pm_manipB_{window_format}_bin{m.w}_Hich_average_ratio_{ctrlCOND}.pdf"),width=24,height=24)
       print(p0)
       print(p1)
       print(p12)
+      print(p13)
       print(p2)
       dev.off()
       

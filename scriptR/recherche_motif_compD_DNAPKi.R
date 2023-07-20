@@ -21,7 +21,7 @@ PCs.ratio <- PCs.ratio %>% filter_by_non_overlaps(gamma_region)
 PCs.ratio <- PCs.ratio %>% mutate(Group.PC1 = ntile(score,100))
 PCs.ratio.seq <- BSgenome::getSeq(BSgenome.Hsapiens.UCSC.hg19,PCs.ratio)
 
-MotifList <- readJASPARMatrix("../data/JASPAR2020_CORE_vertebrates_non-redundant_pfms_jaspar.txt")
+MotifList <- readJASPARMatrix("../../data/JASPAR2020_CORE_vertebrates_non-redundant_pfms_jaspar.txt")
 
 #Gene compD vs gene noCompD
 

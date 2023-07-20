@@ -1,9 +1,11 @@
+
 require(tidyverse)
 require(plyranges)
 require(rtracklayer)
 # PC.path <- "/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/results/PC1_all_chr_log2ratio_100kb_HiC_D_OHT.bw"
+PC.path <- "/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/results/PC1_all_chr_log2ratio_100kb_OHT_manipB.bw"
 # PC.path <- "/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/results/PC1_all_chr_log2ratio_100kb_OHT_manipA.bw"
-PC.path <- "/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/results/PC1_all_chr_log2ratio_100kb_HiC_D_OHTDNAPKi.bw"
+# PC.path <- "/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/results/PC1_all_chr_log2ratio_100kb_HiC_D_OHTDNAPKi.bw"
 # PC.path <- "/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/results/PC1_all_chr_log2ratio.bw"
 out_name_file <- basename(PC.path) %>% str_remove(".bw")
 cc.cov <- PC.path %>% import.bw(as="RleList")
@@ -83,27 +85,29 @@ cc.dsb %>% group_by(Name) %>% nest() %>% mutate(pval = map_dbl(data,function(x){
 DE_DIVA <- PhDfunc::GetDE_DIvA()
 
 DE_DIVA <- DE_DIVA %>% 
-    mutate(Type = case_when(
-        logFC < 0 & FILTER.FC == 1 & FILTER.P == 1 ~ "Downregulated",
-        logFC > 0 & FILTER.FC == 1 & FILTER.P == 1~ "Upregulated",
-        TRUE ~ "None"
-    )) 
+  mutate(Type = case_when(
+    # logFC < 0 & FILTER.P == 1 ~ "Downregulated",
+    logFC < 0 & FILTER.FC == 1 & FILTER.P == 1 ~ "Downregulated",
+    # logFC < 0 & FILTER.FC == 1 ~ "Downregulated",
+    # logFC < -0.3 ~ "Downregulated",
+    # logFC < -0.15 ~ "Downregulated",
+    logFC > 0 & FILTER.FC == 1 & FILTER.P == 1~ "Upregulated",
+    # logFC > 0 & FILTER.P == 1~ "Upregulated",
+    # logFC > 0 & FILTER.FC == 1~ "Upregulated",
+    # logFC > 0.15 ~ "Upregulated",
+    # logFC > 0.3 ~ "Upregulated",
+    TRUE ~ "None"
+  )) 
 
 ens.genes <- read.table("/home/rochevin/Documents/PROJET_THESE/DSB_EFFECT_ON_GENE/data/EnsDB.Hsapiens.v75.genes.bed",sep="\t",h=T) %>% GRanges()
 ens.genes <- regioneR::filterChromosomes(ens.genes,keep.chr=c(1:22,"X","Y"))
 seqlevels(ens.genes) <- paste0("chr",seqlevels(ens.genes))
 mes_DSB <- "/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/data/AsiSI/DF_allAsiSI_ordBLESSpOHT_fragPE_Rmdups_500bp_24012019.tsv" %>% read_tsv() %>% 
     arrange(desc(value)) %>% dplyr::slice(1:200) %>% as_granges()
-gamma_region <- mes_DSB %>% anchor_center() %>% mutate(width = 1000000)
-up.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type =="Upregulated")$rowname)%>%
-    filter_by_non_overlaps(gamma_region) %>% 
-    regioneR::filterChromosomes(keep.chr = keep.chr)
-down.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type =="Downregulated")$rowname)%>%
-    filter_by_non_overlaps(gamma_region) %>% 
-    regioneR::filterChromosomes(keep.chr = keep.chr)
-no.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type =="None",FILTER.FC != 1)$rowname) %>%
-    filter_by_non_overlaps(gamma_region) %>% 
-    regioneR::filterChromosomes(keep.chr = keep.chr) %>% sample(300)
+# gamma_region <- mes_DSB %>% anchor_center() %>% mutate(width = 1000000)
+gamma_region <- mes_DSB %>% anchor_center() %>% mutate(width = 2000000)
+
+# %>% sample(300)
 
 Get1val <- function (Name, one.w, x) 
 {
@@ -118,21 +122,87 @@ Get1val <- function (Name, one.w, x)
 }
 
 
-mes_genes <- list("up.genes"=up.genes,"down.genes"=down.genes,"no.genes"=no.genes)
+# mes_genes <- list("up.genes"=up.genes,"down.genes"=down.genes,"no.genes"=no.genes)
+mes_genes <- list("up.genes"=up.genes,"no.genes"=no.genes)
 
-cc.dsb <- mes_genes %>% 
+# PC.path <- 
+PC.path.multi <- c("/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/results/PC1_all_chr_log2ratio_100kb_OHT_manipB.bw",
+                   "/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/results/PC1_all_chr_log2ratio_100kb_HiC_D_OHT.bw",
+                   "/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/results/PC1_all_chr_log2ratio_100kb_OHT_manipA.bw")
+names(PC.path.multi) <- PC.path.multi %>% map(function(i){basename(i) %>% str_remove(".bw")})
+keep.chr <- glue::glue("chr{c(1,17,'X')}")
+
+up.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type =="Upregulated")$rowname)%>%
+  filter_by_non_overlaps(gamma_region) %>% 
+  regioneR::filterChromosomes(keep.chr = keep.chr)
+down.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type =="Downregulated")$rowname)%>%
+  filter_by_non_overlaps(gamma_region) %>% 
+  regioneR::filterChromosomes(keep.chr = keep.chr)
+# no.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type =="Upregulated",FILTER.FC != 1)$rowname) %>%
+#     filter_by_non_overlaps(gamma_region) %>% 
+#     regioneR::filterChromosomes(keep.chr = keep.chr)
+
+
+no.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type !="Upregulated")$rowname) %>%
+  filter_by_non_overlaps(gamma_region) %>% 
+  regioneR::filterChromosomes(keep.chr = keep.chr)
+
+ccdsb.pre <- PC.path.multi %>%  map(function(one_compD){
+  cc.cov <- one_compD %>% import.bw(as="RleList")
+  cc.dsb <- mes_genes %>% 
     map(function(one_dsb){
-        one_dsb$name <- one_dsb$gene_id
-        Get1val(Name = "cc",one.w = cc.cov,x = one_dsb)
+      one_dsb$name <- one_dsb$gene_id
+      Get1val(Name = "cc",one.w = cc.cov,x = one_dsb)
     }) %>% bind_rows(.id = "Name")
+  
+}) %>% bind_rows(.id = "TypeofCompD")
+
+cc.dsb <- ccdsb.pre %>% group_by(Name,rowname) %>% summarise(value = mean(value))
 
 p3 <- cc.dsb  %>% 
     mutate(Name = factor(Name,levels = c("no.genes","up.genes","down.genes"))) %>% 
-    ggplot(aes(x=Name,y=value,fill=Name)) + geom_boxplot() + theme_classic()
+    ggplot(aes(x=Name,y=value,fill=Name)) + geom_boxplot(outlier.shape = NA) + theme_classic()
 
-pdf(glue::glue("../../results/PC1_signal_over_DE_DIVA_Genes_in_same_chr_{out_name_file}.pdf"),height=4,width=8)
-print(p3)
+pdf(glue::glue("../../results/after_FC03/PC1_signal_over_DE_DIVA_Genes_in_same_chr_inAverage_A_B_D.pdf"),height=4,width=8)
+# print(p3)
+print(p3 + coord_cartesian(ylim = c(-0.025,0.025)))
 dev.off()
+
+
+## WITH DNAPKI
+keep.chr <- glue::glue("chr{c(2,6,9,13,18,1,17,20,'X')}")
+
+PC.path.multi <- c("/home/rochevin/Documents/PROJET_THESE/PAPIER_COLINE_AUDE/results/PC1_all_chr_log2ratio_100kb_HiC_D_OHTDNAPKi.bw")
+names(PC.path.multi) <- PC.path.multi %>% map(function(i){basename(i) %>% str_remove(".bw")})
+
+up.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type =="Upregulated")$rowname)%>%
+  filter_by_non_overlaps(gamma_region) %>% 
+  regioneR::filterChromosomes(keep.chr = keep.chr)
+down.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type =="Downregulated")$rowname)%>%
+  filter_by_non_overlaps(gamma_region) %>% 
+  regioneR::filterChromosomes(keep.chr = keep.chr)
+
+ccdsb.pre <- PC.path.multi %>%  map(function(one_compD){
+  cc.cov <- one_compD %>% import.bw(as="RleList")
+  cc.dsb <- mes_genes %>% 
+    map(function(one_dsb){
+      one_dsb$name <- one_dsb$gene_id
+      Get1val(Name = "cc",one.w = cc.cov,x = one_dsb)
+    }) %>% bind_rows(.id = "Name")
+  
+}) %>% bind_rows(.id = "TypeofCompD")
+
+cc.dsb <- ccdsb.pre %>% group_by(Name,rowname) %>% summarise(value = mean(value))
+
+p3 <- cc.dsb  %>% 
+  mutate(Name = factor(Name,levels = c("no.genes","up.genes","down.genes"))) %>% 
+  ggplot(aes(x=Name,y=value,fill=Name)) + geom_boxplot(outlier.shape = NA) + theme_classic()
+
+pdf(glue::glue("../../results/after_FC03/PC1_signal_over_DE_DIVA_Genes_in_same_chr_{paste(names(PC.path.multi),sep='_')}.pdf"),height=4,width=8)
+# print(p3)
+print(p3 + coord_cartesian(ylim = c(-0.03,0.03)))
+dev.off()
+
 #Only chr 1 / 17
 
 up.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type =="Upregulated")$rowname)%>%
@@ -144,9 +214,13 @@ down.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type =="Downregul
 no.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type =="None",FILTER.FC != 1)$rowname) %>%
     filter_by_non_overlaps(gamma_region) %>% 
     regioneR::filterChromosomes(keep.chr = c("chr1","chr17")) %>% sample(300)
-
+no.genes <- ens.genes %>% filter(gene_id %in% filter(DE_DIVA,Type =="None",FILTER.FC != 1)$rowname) %>%
+    filter_by_non_overlaps(gamma_region) %>% 
+    regioneR::filterChromosomes(keep.chr = c("chr1","chr17")) %>% sample(300)
 
 mes_genes <- list("up.genes"=up.genes,"down.genes"=down.genes,"no.genes"=no.genes)
+
+
 
 cc.dsb <- mes_genes %>% 
     map(function(one_dsb){
@@ -161,6 +235,16 @@ p3 <- cc.dsb  %>%
 pdf(glue::glue("../../results/PC1_signal_over_DE_DIVA_Genes_in_chr1_chr17_{out_name_file}.pdf"),height=4,width=8)
 print(p3)
 dev.off()
+
+##MODIF AU 27/10/21 TO CHECK IF GAMMA_DOMAIN 2Mb change anything
+cc.dsb %>% dplyr::select(-wig) %>% rename(compD="value")%>% write_tsv(glue::glue("../../results/genes_compD_value_used_to_produce_PC1_signal_over_DE_DIVA_Genes_in_chr1_chr17_{out_name_file}.tsv"))
+pdf(glue::glue("../../results/PC1_signal_over_DE_DIVA_Genes_in_chr1_chr17_{out_name_file}_with2mbgammadomains.pdf"),height=4,width=8)
+print(p3)
+dev.off()
+
+cc.dsb %>% group_by(Name) %>% nest() %>% mutate(pval = map_dbl(data,function(x){wilcox.test(x$value)$p.value}))
+
+
 
 cc.dsb %>% group_by(Name) %>% nest() %>% mutate(pval = map_dbl(data,function(x){wilcox.test(x$value)$p.value}))
 

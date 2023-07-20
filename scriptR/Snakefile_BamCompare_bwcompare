@@ -1,0 +1,71 @@
+OUT_PATH = "/media/HDD_ROCHER/PROJET_THESE/PAPIER_COLINE_AUDE/results/BIGWIG_BAM_COMPARE"
+IN_PATH ="/mnt/NAS/DATA/HIGH_THROUGHPUT_GENOMICS_DIvA/RNA-Seq/EMBL_201707/PROCESSED/"
+
+
+
+FILES = {
+	"HYL5LBGX2_RNA_STX_vs_C1_OHT":{
+		"bamCompare":["SAM_BAM/HYL5LBGX2/HYL5LBGX2_RNA_C1_OHT_1_17s002465-1-1_Clouaire_lane117s002465_hg19plusERCC.sorted.bam","SAM_BAM/HYL5LBGX2/HYL5LBGX2_RNA_STX_OHT_1_17s002467-1-1_Clouaire_lane117s002467_hg19plusERCC.sorted.bam"],
+		"bigwigCompare":["WIGGLE/HYL5LBGX2/HYL5LBGX2_RNA_C1_OHT_1_17s002465-1-1_Clouaire_lane117s002465_hg19plusERCC_normalized.bw","WIGGLE/HYL5LBGX2/HYL5LBGX2_RNA_STX_OHT_1_17s002467-1-1_Clouaire_lane117s002467_hg19plusERCC_normalized.bw"]
+	},
+	"HYL5LBGX2_RNA_STX_vs_C1_DIVA":{
+		"bamCompare":["SAM_BAM/HYL5LBGX2/HYL5LBGX2_RNA_C1_1_17s002464-1-1_Clouaire_lane117s002464_hg19plusERCC.sorted.bam","SAM_BAM/HYL5LBGX2/HYL5LBGX2_RNA_STX_1_17s002466-1-1_Clouaire_lane117s002466_hg19plusERCC.sorted.bam"],
+		"bigwigCompare":["WIGGLE/HYL5LBGX2/HYL5LBGX2_RNA_C1_1_17s002464-1-1_Clouaire_lane117s002464_hg19plusERCC_normalized.bw","WIGGLE/HYL5LBGX2/HYL5LBGX2_RNA_STX_1_17s002466-1-1_Clouaire_lane117s002466_hg19plusERCC_normalized.bw"]
+	},
+	"HYL5LBGX2_RNA_OHT_vs_DIVA_STX":{
+		"bamCompare":["SAM_BAM/HYL5LBGX2/HYL5LBGX2_RNA_STX_1_17s002466-1-1_Clouaire_lane117s002466_hg19plusERCC.sorted.bam","SAM_BAM/HYL5LBGX2/HYL5LBGX2_RNA_STX_OHT_1_17s002467-1-1_Clouaire_lane117s002467_hg19plusERCC.sorted.bam"],
+		"bigwigCompare":["WIGGLE/HYL5LBGX2/HYL5LBGX2_RNA_STX_1_17s002466-1-1_Clouaire_lane117s002466_hg19plusERCC_normalized.bw","WIGGLE/HYL5LBGX2/HYL5LBGX2_RNA_STX_OHT_1_17s002467-1-1_Clouaire_lane117s002467_hg19plusERCC_normalized.bw"]
+	},
+	"HYL5LBGX2_RNA_OHT_vs_DIVA_CTRL":{
+		"bamCompare":["SAM_BAM/HYL5LBGX2/HYL5LBGX2_RNA_C1_1_17s002464-1-1_Clouaire_lane117s002464_hg19plusERCC.sorted.bam","SAM_BAM/HYL5LBGX2/HYL5LBGX2_RNA_C1_OHT_1_17s002465-1-1_Clouaire_lane117s002465_hg19plusERCC.sorted.bam"],
+		"bigwigCompare":["WIGGLE/HYL5LBGX2/HYL5LBGX2_RNA_C1_1_17s002464-1-1_Clouaire_lane117s002464_hg19plusERCC_normalized.bw","WIGGLE/HYL5LBGX2/HYL5LBGX2_RNA_C1_OHT_1_17s002465-1-1_Clouaire_lane117s002465_hg19plusERCC_normalized.bw"]
+	},
+
+	"HYMHNBGX2_RNA_STX_vs_C1_OHT":{
+		"bamCompare":["SAM_BAM/HYMHNBGX2/HYMHNBGX2_RNA_C1_OHT_2_17s002469-1-1_Clouaire_lane117s002469_hg19plusERCC.sorted.bam","SAM_BAM/HYMHNBGX2/HYMHNBGX2_RNA_STX_OHT_2_17s002471-1-1_Clouaire_lane117s002471_hg19plusERCC.sorted.bam"],
+		"bigwigCompare":["WIGGLE/HYMHNBGX2/HYMHNBGX2_RNA_C1_OHT_2_17s002469-1-1_Clouaire_lane117s002469_hg19plusERCC_normalized.bw","WIGGLE/HYMHNBGX2/HYMHNBGX2_RNA_STX_OHT_2_17s002471-1-1_Clouaire_lane117s002471_hg19plusERCC_normalized.bw"]
+	},
+	"HYMHNBGX2_RNA_STX_vs_C1_DIVA":{
+		"bamCompare":["SAM_BAM/HYMHNBGX2/HYMHNBGX2_RNA_C1_2_17s002468-1-1_Clouaire_lane117s002468_hg19plusERCC.sorted.bam","SAM_BAM/HYMHNBGX2/HYMHNBGX2_RNA_STX_2_17s002470-1-1_Clouaire_lane117s002470_hg19plusERCC.sorted.bam"],
+		"bigwigCompare":["WIGGLE/HYMHNBGX2/HYMHNBGX2_RNA_C1_2_17s002468-1-1_Clouaire_lane117s002468_hg19plusERCC_normalized.bw","WIGGLE/HYMHNBGX2/HYMHNBGX2_RNA_STX_2_17s002470-1-1_Clouaire_lane117s002470_hg19plusERCC_normalized.bw"]
+	},
+	"HYMHNBGX2_RNA_OHT_vs_DIVA_STX":{
+		"bamCompare":["SAM_BAM/HYMHNBGX2/HYMHNBGX2_RNA_STX_2_17s002470-1-1_Clouaire_lane117s002470_hg19plusERCC.sorted.bam","SAM_BAM/HYMHNBGX2/HYMHNBGX2_RNA_STX_OHT_2_17s002471-1-1_Clouaire_lane117s002471_hg19plusERCC.sorted.bam"],
+		"bigwigCompare":["WIGGLE/HYMHNBGX2/HYMHNBGX2_RNA_STX_2_17s002470-1-1_Clouaire_lane117s002470_hg19plusERCC_normalized.bw","WIGGLE/HYMHNBGX2/HYMHNBGX2_RNA_STX_OHT_2_17s002471-1-1_Clouaire_lane117s002471_hg19plusERCC_normalized.bw"]
+	},
+	"HYMHNBGX2_RNA_OHT_vs_DIVA_CTRL":{
+		"bamCompare":["SAM_BAM/HYMHNBGX2/HYMHNBGX2_RNA_C1_2_17s002468-1-1_Clouaire_lane117s002468_hg19plusERCC.sorted.bam","SAM_BAM/HYMHNBGX2/HYMHNBGX2_RNA_C1_OHT_2_17s002469-1-1_Clouaire_lane117s002469_hg19plusERCC.sorted.bam"],
+		"bigwigCompare":["WIGGLE/HYMHNBGX2/HYMHNBGX2_RNA_C1_2_17s002468-1-1_Clouaire_lane117s002468_hg19plusERCC_normalized.bw","WIGGLE/HYMHNBGX2/HYMHNBGX2_RNA_C1_OHT_2_17s002469-1-1_Clouaire_lane117s002469_hg19plusERCC_normalized.bw"]
+	}
+
+}
+
+
+def getminus(wildcards):
+	return("{0}{1}".format(IN_PATH,FILES[wildcards.file][wildcards.fileformat][0]))
+def getplus(wildcards):
+	return("{0}{1}".format(IN_PATH,FILES[wildcards.file][wildcards.fileformat][1]))
+
+rule all:
+	input:
+		expand(OUT_PATH+"/{file}.{operation}.{fileformat}.bw",file=FILES.keys(),operation = ["log2"],fileformat = ["bigwigCompare","bamCompare"])
+
+rule bigWigBamCompare:
+	input:
+		mOHT = getminus,
+		pOHT = getplus
+	output:
+		OUT_PATH+"/{file}.{operation}.{fileformat}.bw"
+	params:
+		binSize = 50,
+		fileformat="{fileformat}",
+		operation= "{operation}"
+	threads: 4
+	shell:
+		"{params.fileformat} "
+		"--binSize {params.binSize} "
+		"--numberOfProcessors {threads} "
+		"--outFileName {output} "
+		"--operation {params.operation} "
+		"-b1 {input.pOHT} "
+		"-b2 {input.mOHT} "
